@@ -1,121 +1,111 @@
 import * as Tone from 'tone';
 
-class AudioEngine {
-  private polySynth: Tone.PolySynth | null = null;
-  private synthLoop: Tone.Loop | null = null;
-  public streamDestination: MediaStreamAudioDestinationNode | null = null;
+class SoccerAudioEngine {
+  private synth: Tone.PolySynth | null = null;
+  private sequence: Tone.Sequence | null = null;
   private isInitialized = false;
 
-  /**
-   * Initializes the Web Audio Context, sets up orchestral synths,
-   * and creates a media stream routing node for the final recording download.
-   */
-  public async init() {
+  // Harmonious pools structured by chord zones so it feels like a real composition
+  private chords = {
+    cMinor: ['C3', 'Eb3', 'G3', 'Bb3', 'C4', 'Eb4', 'G4', 'Bb4'],
+    fDominant: ['F3', 'A3', 'C4', 'Eb4', 'F4', 'A4', 'C5', 'Eb5'],
+    bbMajor: ['Bb2', 'D3', 'F3', 'A3', 'Bb3', 'D4', 'F4', 'A4']
+  };
+
+  private currentChordSequence = ['cMinor', 'fDominant', 'bbMajor', 'fDominant'];
+  private stepCounter = 0;
+  private lastNoteIndex = 4; // Start in the middle of the register
+
+  async init() {
     if (this.isInitialized) return;
 
-    // 1. Wait for Tone.js to start its audio context
     await Tone.start();
 
-    // 2. Safely cast Tone's raw context to a standard browser AudioContext to fix TS(2339)
-    const rawContext = Tone.getContext().rawContext as AudioContext;
-
-    if (!rawContext.createMediaStreamDestination) {
-      throw new Error("This browser environment does not support MediaStream audio generation.");
-    }
-
-    this.streamDestination = rawContext.createMediaStreamDestination();
-
-    // 3. Create a lush, orchestral-like PolySynth (Simulating a string ensemble)
-    this.polySynth = new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: 'triangle' }, // Soft, warm tone like woodwinds/strings
+    // Warm, ambient synth profile with soft attack to prevent ear fatigue
+    this.synth = new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: 'triangle' },
       envelope: {
-        attack: 0.2,  // Smooth orchestral swell
-        decay: 0.3,
-        sustain: 0.6,
-        release: 0.8  // Orchestral resonance
+        attack: 0.08,
+        decay: 0.15,
+        sustain: 0.4,
+        release: 0.6
       }
-    });
+    }).toDestination();
 
-    // 4. Route audio to BOTH the speakers (destination) AND our recorder stream node
-    this.polySynth.disconnect();
-    this.polySynth.toDestination(); // Audio out to speakers
-    this.polySynth.connect(this.streamDestination); // Audio out to MediaRecorder pipeline
+    this.synth.volume.value = -14;
 
-    // 5. Build an arpeggiated loop that acts as our musical metronome
-    const notes = ["C4", "E4", "G4", "B4"];
-    let noteIndex = 0;
+    this.sequence = new Tone.Sequence(
+      (time) => {
+        if (!this.synth) return;
 
-    this.synthLoop = new Tone.Loop((time) => {
-      if (!this.polySynth) return;
-      
-      const currentNote = notes[noteIndex % notes.length];
-      // Trigger note with a soft velocity (0.4) so it sounds pleasant
-      this.polySynth.triggerAttackRelease(currentNote, "8n", time, 0.4);
-      noteIndex++;
-    }, "8n"); // Plays eighth notes
+        // 1. Shift chords every 16 steps (one full musical bar)
+        const currentChordKey = this.currentChordSequence[Math.floor(this.stepCounter / 16) % this.currentChordSequence.length];
+        const activeNotePool = this.chords[currentChordKey as keyof typeof this.chords];
 
-    // Start the transport timeline, but keep default tempo stable initially
+        // 2. Algorithmic Random Walk: Pick a next note nearby (-1, 0, or +1 index shift)
+        // This keeps the melody flowing naturally instead of jumping around erratically
+        const stepChange = Math.floor(Math.random() * 3) - 1; // Gives -1, 0, or 1
+        let nextIndex = this.lastNoteIndex + stepChange;
+
+        // Keep inside bounds of our pool array
+        if (nextIndex < 0) nextIndex = 1;
+        if (nextIndex >= activeNotePool.length) nextIndex = activeNotePool.length - 2;
+        this.lastNoteIndex = nextIndex;
+
+        const melodicNote = activeNotePool[nextIndex];
+
+        // 3. Rhythmic Voice Texturing
+        if (this.stepCounter % 8 === 0) {
+          // Play a deep foundational bass pad on the structural downbeats
+          const bassNote = activeNotePool[0].replace('3', '2').replace('4', '2');
+          this.synth.triggerAttackRelease([bassNote, melodicNote], '4n', time);
+        } else if (this.stepCounter % 2 === 0 || Math.random() > 0.4) {
+          // Add rhythmic variety by leaving random empty spaces (syncopation)
+          this.synth.triggerAttackRelease(melodicNote, '16n', time);
+        }
+
+        this.stepCounter++;
+      },
+      ['step'],
+      '16n' // High-resolution sixteenth notes for responsive tempo shifts
+    );
+
     Tone.getTransport().bpm.value = 100;
-    this.synthLoop.start(0);
-    
     this.isInitialized = true;
-    console.log("🎻 Audio Engine & Orchestral Synthesizers loaded successfully.");
+    console.log("🎵 Algorithmic Audio Engine successfully engaged.");
   }
 
-  /**
-   * Starts playing the generative background track.
-   */
-  public start() {
+  start() {
     if (!this.isInitialized) return;
-    Tone.getTransport().start();
+     Tone.getTransport().start();
+    this.sequence?.start(0);
   }
 
-  /**
-   * Pauses the track performance.
-   */
-  public stop() {
+  stop() {
     if (!this.isInitialized) return;
     Tone.getTransport().stop();
+    this.sequence?.stop();
+    this.synth?.releaseAll();
   }
 
-  /**
-   * Core logic to map ball velocity into tempo modifications.
-   */
-  public updateTempoFromVelocity(dx: number, dy: number): number {
-    if (!this.isInitialized) return Tone.getTransport().bpm.value;
-
-    // Calculate Euclidean distance (pixels traveled per frame)
-    const velocity = Math.sqrt(dx * dx + dy * dy);
-
-    // Map velocity to musical limits
-    // Min tempo: 60 BPM (Adagio / slow walk)
-    // Max tempo: 210 BPM (Prestissimo / fast breakaway sprint)
-    const minBpm = 60;
-    const maxBpm = 210;
-    
-    // Scale factor: adjusts how sensitive the music is to ball movements
-    const sensitivity = 3.5; 
-    const targetBpm = Math.min(maxBpm, Math.max(minBpm, minBpm + (velocity * sensitivity)));
-
-    // Smooth the transition slightly so the audio doesn't snap unnaturally
-    const currentBpm = Tone.getTransport().bpm.value;
-    const smoothedBpm = currentBpm + (targetBpm - currentBpm) * 0.3;
-
-    const finalBpm = Math.round(smoothedBpm);
-    Tone.getTransport().bpm.value = finalBpm;
-    
-    return finalBpm;
+  setBpm(targetBpm: number) {
+    if (!this.isInitialized) return;
+    // Smoothly shift the global clock array
+    Tone.getTransport().bpm.rampTo(targetBpm, 0.1);
   }
 
-  /**
-   * Clean up nodes if component unmounts.
-   */
-  public dispose() {
-    this.synthLoop?.dispose();
-    this.polySynth?.dispose();
+  updateTempoFromVelocity(dx: number, dy: number) {
+    return 100; // Compatibility fallback anchor
+  }
+
+  dispose() {
+    this.stop();
+    this.sequence?.dispose();
+    this.synth?.dispose();
+    this.synth = null;
+    this.sequence = null;
     this.isInitialized = false;
   }
 }
 
-// Export a single instance to be shared easily across components
-export const audioEngine = new AudioEngine();
+export const audioEngine = new SoccerAudioEngine();
