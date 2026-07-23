@@ -179,11 +179,11 @@ export default function SoccerSymphony() {
         
         <header className="border-b border-slate-200 pb-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Soccer Symphony Lab</h1>
-            <p className="text-sm text-slate-500 mt-1">Asynchronous multi-node tracking interface.</p>
+            <h1 className="text-2xl font-bold text-slate-900">Soccer Symphony</h1>
+            <p className="text-sm text-slate-500 mt-1">Asynchronous tracking interface.</p>
           </div>
           <div className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
-            {isModelLoading ? '⏳ Spawning Thread...' : '✅ Thread Ready'}
+            {isModelLoading ? '⏳ Loading Thread...' : '✅ Thread Ready'}
           </div>
         </header>
 
