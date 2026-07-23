@@ -1,36 +1,15 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Soccer Symphony
 
-## Getting Started
+## Purpose
+This project is an interactive web application that turns soccer match video footage into real-time music. It uses artificial intelligence to analyze video clips of soccer games, track the movement of players on the field, and use their collective speed to control a musical synthesizer. When the game speeds up, the music speeds up, creating a changing soundtrack composed by the movement of the athletes.
 
-First, run the development server:
+## How It Works
+The system splits the work into two main processes to keep the application running smoothly in the browser:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+* **Visual Tracking:** The application loads a YOLOv8 machine learning model inside a separate background process called a Web Worker. This background thread calculates the positions of all players on the screen, finds their average center-point, and monitors how fast that center-point shifts without freezing the user interface.
+* **Algorithmic Audio Engine:** The app uses Tone.js to generate audio. To prevent the music from sounding like a repetitive scale, the engine uses a math-based random walk. It holds pools of matching notes grouped by different chords and randomly selects a nearby note from the active chord group on each beat, creating a continuous, non-repetitive melody.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Key Technical Features
+* **Time Normalization:** Velocity is calculated by dividing the distance players moved by the exact number of milliseconds that passed between tracking frames. This keeps the tempo stable regardless of computer performance or frame drops.
+* **Camera Pan Filtering:** Sudden stadium camera movements can trick the AI into reading impossible player speeds. The code contains a spatial gate that completely ignores sudden tracking jumps larger than 120 pixels to keep the music steady during quick camera cuts.
+* **Exponential Damping:** To prevent the music from shifting erratically between fast and slow speeds, the app applies a digital shock absorber. It blends 93% of the previous tempo with 7% of the new speed calculation, ensuring all musical transitions are smooth and gradual.
