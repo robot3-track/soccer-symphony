@@ -13,3 +13,6 @@ The system splits the work into two main processes to keep the application runni
 * **Time Normalization:** Velocity is calculated by dividing the distance players moved by the exact number of milliseconds that passed between tracking frames. This keeps the tempo stable regardless of computer performance or frame drops.
 * **Camera Pan Filtering:** Sudden stadium camera movements can trick the AI into reading impossible player speeds. The code contains a spatial gate that completely ignores sudden tracking jumps larger than 120 pixels to keep the music steady during quick camera cuts.
 * **Exponential Damping:** To prevent the music from shifting erratically between fast and slow speeds, the app applies a digital shock absorber. It blends 93% of the previous tempo with 7% of the new speed calculation, ensuring all musical transitions are smooth and gradual.
+
+## Try out official deployment!
+Try out the official deployment at: https://musicsoccer.vercel.app !
